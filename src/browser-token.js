@@ -16,7 +16,7 @@ const getGoogleApiUrls = async (parentState, input) => {
     const proxyConfiguration = await Actor.createProxyConfiguration(proxy);
     const crawler = new PlaywrightCrawler({
         proxyConfiguration,
-        requestHandlerTimeoutSecs: 7 * 60,
+        requestHandlerTimeoutSecs: (processCoords.length + 5) * 60,
         async requestHandler(context) {
             const { page } = context;
             log.info(`Crafting API URLs for ${processCoords.length} coordinates`);
@@ -50,6 +50,7 @@ const getGoogleApiUrls = async (parentState, input) => {
                 }
             });
             const gHandle = evaluateHandle ? await page.evaluateHandle(() => new google.maps.Geocoder()) : null;
+            let cnt = 0;
             for (const coord of processCoords) {
                 // latlng parsed from web UI from textbox as floats, mimic it
                 const lat = parseFloat(coord.lat); // 38.714224
@@ -72,6 +73,11 @@ const getGoogleApiUrls = async (parentState, input) => {
                     if (!err.message?.includes('_.he')) {
                         log.error(err.nessage, err);
                     }
+                }
+                await sleep(3 * 1000); // delay needed to not lost requests by route
+                cnt++;
+                if (cnt % 10 === 0) {
+                    log.info(`Crafted ${cnt} URLs out of ${processCoords.length} in total`);
                 }
             }
         },
