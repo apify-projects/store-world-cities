@@ -4,9 +4,9 @@
     "schemaVersion": 1,
     "properties": {
         "countryCode": {
-            "title": "🗺 Country (scan whole or combine with other geolocation inputs)",
+            "title": "Country (scan whole or filter by population)",
             "type": "string",
-            "description": "Set the country where the search should be carried out, e.g., <code>United States</code>. <strong> If used without city or other geolocation parameters, the scraper will scan the whole country!</strong> <br> Currently, the scraper doesn't work well for full-country searching of sparsely populated countries like USA or Russia. For these, prefer searching city by city or focus on populated states.",
+            "description": "Full dataset is 199.000+ contries across the world",
             "prefill": "",
             "editor": "select",
             "enum": [
@@ -518,6 +518,7 @@
             "editor": "number",
             "unit": "per URL",
             "minimum": 5,
+            "default": 5,
             "prefill": 5
         },
         "proxy": {
