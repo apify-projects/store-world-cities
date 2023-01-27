@@ -6,7 +6,7 @@ import { mockGeocodeResponse } from './consts.js'; // eslint-disable-line import
 
 const getGoogleApiUrls = async (parentState, input) => {
     const { coords = [] } = parentState;
-    const { proxy, evaluateHandle } = input;
+    const { proxy, apiDelaySecs = 5, evaluateHandle } = input;
 
     const processCoords = coords.filter((x) => !x.geocodeUrl);
     if (!processCoords.length) {
@@ -74,7 +74,7 @@ const getGoogleApiUrls = async (parentState, input) => {
                         log.error(err.nessage, err);
                     }
                 }
-                await sleep(3 * 1000); // delay needed to not lost requests by route
+                await sleep(apiDelaySecs * 1000); // delay needed to not lost requests by route
                 cnt++;
                 if (cnt % 10 === 0) {
                     log.info(`Crafted ${cnt} URLs out of ${processCoords.length} in total`);

@@ -511,6 +511,15 @@
             "default": false,
             "editor": "checkbox"
         },      
+        "apiDelaySecs": {
+            "title": "Delay for geocoding (seconds)",
+            "type": "integer",
+            "description": "Playwright delay, at least 5 seconds to be able intercept route",
+            "editor": "number",
+            "unit": "per URL",
+            "minimum": 5,
+            "prefill": 5
+        },
         "proxy": {
             "title": "Proxy configuration",
             "type": "object",
