@@ -89,7 +89,7 @@ const getGoogleApiUrls = async (parentState, input) => {
                             log.debug(`${limitErrorLabel}:${retries}`, coord);
                             await sleep(tokenDelaySecs * 1000);
                         } else {
-                            throw new Error(err);
+                            throw new Error(err.message);
                         }
                     }
                 } while (retries);
