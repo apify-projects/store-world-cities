@@ -6,7 +6,7 @@ import { mockGeocodeResponse } from './consts.js'; // eslint-disable-line import
 
 const getGoogleApiUrls = async (parentState, input) => {
     const { coords = [] } = parentState;
-    const { proxy } = input;
+    const { proxy, maxRequestRetries = 5 } = input;
 
     const proxyConfiguration = await Actor.createProxyConfiguration(proxy);
     const crawler = new PuppeteerCrawler({
@@ -14,7 +14,7 @@ const getGoogleApiUrls = async (parentState, input) => {
         persistCookiesPerSession: false,
         proxyConfiguration,
         requestHandlerTimeoutSecs: (coords.length + 1) * 60,
-        maxRequestRetries: parseInt(coords.length / 10, 10),
+        maxRequestRetries,
         async requestHandler(context) {
             const { page } = context;
 

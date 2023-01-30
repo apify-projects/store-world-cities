@@ -36,9 +36,14 @@ const reverseGeocoding = async (parentState, input) => {
             log.debug(url);
             const respText = body.toString();
             try {
-                const rawData = respText.split('( ')[1].replace(')', '');
+                // eslint-disable-next-line prefer-template
+                const rawData = '{' + respText.split('( {')[1].split('"status" :')[0] + '"status": "parsed"}';
                 const json = JSON.parse(rawData);
-                const geoData = json?.results?.find((x) => x?.geometry?.location_type === 'GEOMETRIC_CENTER');
+                const geoDataWithBounds = json?.results?.find((x) => x?.geometry?.bounds && x?.geometry?.location_type === 'GEOMETRIC_CENTER');
+                if (geoDataWithBounds) {
+                    geoDataWithBounds.viewport = undefined;
+                }
+                const geoData = geoDataWithBounds || json?.results?.find((x) => x?.geometry?.location_type === 'GEOMETRIC_CENTER');
                 if (!geoData) {
                     log.error(`[NOT-GEOMETRIC-CENTER]: ${url}`);
                 }
@@ -48,6 +53,7 @@ const reverseGeocoding = async (parentState, input) => {
                     ...geoData?.plus_code,
                     placeId: geoData?.place_id || undefined,
                     location_type: undefined,
+                    location: undefined,
                 };
                 await Dataset.pushData(data);
             } catch (err) {
