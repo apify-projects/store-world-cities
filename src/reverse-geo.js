@@ -38,9 +38,16 @@ const reverseGeocoding = async (parentState, input) => {
             try {
                 const rawData = respText.split('( ')[1].replace(')', '');
                 const json = JSON.parse(rawData);
+                const geoData = json?.results?.find((x) => x?.geometry?.location_type === 'GEOMETRIC_CENTER');
+                if (!geoData) {
+                    log.error(`[NOT-GEOMETRIC-CENTER]: ${url}`);
+                }
                 const data = {
                     ...userData,
-                    ...json,
+                    ...geoData?.geometry,
+                    ...geoData?.plus_code,
+                    placeId: geoData?.place_id || undefined,
+                    location_type: undefined,
                 };
                 await Dataset.pushData(data);
             } catch (err) {

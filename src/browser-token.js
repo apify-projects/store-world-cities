@@ -10,8 +10,11 @@ const getGoogleApiUrls = async (parentState, input) => {
 
     const proxyConfiguration = await Actor.createProxyConfiguration(proxy);
     const crawler = new PuppeteerCrawler({
+        useSessionPool: false,
+        persistCookiesPerSession: false,
         proxyConfiguration,
         requestHandlerTimeoutSecs: (coords.length + 1) * 60,
+        maxRequestRetries: parseInt(coords.length / 10, 10),
         async requestHandler(context) {
             const { page } = context;
 
@@ -25,8 +28,9 @@ const getGoogleApiUrls = async (parentState, input) => {
             log.info(`Crafting API URLs for ${latlngCoords.length} coordinates`);
             if (!latlngCoords.length) return;
             let cnt = 0;
-            await sleep(10 * 1000);
+            // await page.waitForNetworkIdle();
             await page.waitForFunction('google && google.maps && google.maps.Geocoder');
+
             page.setRequestInterception(true);
             // Expected pattern
             // https://maps.googleapis.com/maps/api/js/GeocodeService.Search?5m2&1d38.714224&2d-73.961452&9sen-US&callback=_xdc_._loxntf&key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&token=117202
@@ -53,26 +57,49 @@ const getGoogleApiUrls = async (parentState, input) => {
                     if (cnt % 10 === 0 || cnt >= latlngCoords.length) {
                         log.info(`Crafted ${cnt} URLs out of ${latlngCoords.length} in total`);
                     }
+                    // request.abort(); // aborting still counts as query limit
                     request.continue({ body: mockGeocodeResponse });
                 } else {
                     log.info(url);
                     request.continue();
                 }
             });
-            await page.evaluate(async (data) => {
-                const o = new google.maps.Geocoder();
-                for (const item of data) {
-                    try {
-                        await o.geocode(item);
-                    } catch (err) {
-                        // just skip it
-                    }
+
+            const fakeCallToGenerateUrl = async (item) => {
+                const ignoreErr = 'A geocoding request could not be processed due to a server error.';
+                try {
+                    const o = new google.maps.Geocoder();
+                    await o.geocode(item);
+                } catch (e) {
+                    if (!e.message.includes(ignoreErr)) throw new Error(e.message);
                 }
-            }, latlngCoords);
+            };
+
+            for (const coord of latlngCoords) {
+                let retries = 3;
+                do {
+                    try {
+                        await page.evaluate(fakeCallToGenerateUrl, coord);
+                        retries = 0;
+                    } catch (err) {
+                        const limitErrorLabel = 'OVER_QUERY_LIMIT';
+                        // its js-calculated limit, not actual calls made, so resolve it by pause
+                        retries--;
+                        if (err.message.includes(limitErrorLabel) && retires) {
+                            log.debug(`${limitErrorLabel}:${retries}`, coord);
+                            await sleep(2000);
+                        } else {
+                            throw new Error(err);
+                        }
+                    }
+                } while (retries);
+            }
         },
     });
 
-    await crawler.run(['https://geo-devrel-javascript-samples.web.app/samples/geocoding-reverse/app/dist/']);
+    await crawler.run([{
+        url: 'https://geo-devrel-javascript-samples.web.app/samples/geocoding-reverse/app/dist/',
+    }]);
 };
 
 export {
