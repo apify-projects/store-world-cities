@@ -28,6 +28,11 @@ Short data (without reverse geocoding) saved to KV store as `cities.json` and wi
 }
 ```
 
+## Geocoding
+Google Maps API data available for free with public API key, i.e. https://maps.googleapis.com/maps/api/js/GeocodeService.Search?5m2&1d43.03339&2d-80.88302&9sen-US&callback=_xdc_._5phunz&key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&token=69028
+Its protected by hashed pair of values: `callback` and `token` and unique per coordinates, so actor getting `geocodeUrl` from google maps client loaded into browser and then doing second run of scraping following geocode URLs.
+Google map client trying to protect api data from extraction by following its internal query limit. First limit can be easily reproduced from web UI https://geo-devrel-javascript-samples.web.app/samples/geocoding-reverse/app/dist/ by approx dozen of clicks on "Reverse Geocoding" button, it will lead to error alert `Geocoder failed due to: MapsRequestError: GEOCODER_GEOCODE: OVER_QUERY_LIMIT: The webpage has gone over the requests limit in too short a period  of time.` Actor handles this limit by waiting for `tokenDelaySecs` when necessary. Second linit is when total amount of calls to `google.maps.Geocoder().geocode()` go over 100-150 and needs long time of waiiting, so actor just re-throw exception on this limit to reload page (atm looks like its best approach in terms of performance). Actor blocking actual calls to Google API from web page so mentioned limits are client side and never trackable to Google.
+
 ## Output example
 ```
 {
