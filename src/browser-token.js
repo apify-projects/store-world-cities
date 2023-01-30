@@ -1,27 +1,33 @@
 /* eslint-disable no-undef */
 import { Actor } from 'apify';
-import { PlaywrightCrawler, log, sleep } from 'crawlee';
+import { PuppeteerCrawler, log, sleep } from 'crawlee';
 
 import { mockGeocodeResponse } from './consts.js'; // eslint-disable-line import/extensions
 
 const getGoogleApiUrls = async (parentState, input) => {
     const { coords = [] } = parentState;
-    const { proxy, apiDelaySecs = 5, evaluateHandle } = input;
-
-    const processCoords = coords.filter((x) => !x.geocodeUrl);
-    if (!processCoords.length) {
-        return;
-    }
+    const { proxy } = input;
 
     const proxyConfiguration = await Actor.createProxyConfiguration(proxy);
-    const crawler = new PlaywrightCrawler({
+    const crawler = new PuppeteerCrawler({
         proxyConfiguration,
-        requestHandlerTimeoutSecs: (processCoords.length + 5) * 60,
+        requestHandlerTimeoutSecs: (coords.length + 1) * 60,
         async requestHandler(context) {
             const { page } = context;
-            log.info(`Crafting API URLs for ${processCoords.length} coordinates`);
+
+            const latlngCoords = coords.filter((x) => !x.geocodeUrl).map((coord) => {
+                // latlng parsed from web UI from textbox as floats, mimic it
+                const lat = parseFloat(coord.lat); // 38.714224
+                const lng = parseFloat(coord.lng); // -73.961452
+                const loc = { location: { lat, lng } };
+                return loc;
+            });
+            log.info(`Crafting API URLs for ${latlngCoords.length} coordinates`);
+            if (!latlngCoords.length) return;
+            let cnt = 0;
             await sleep(10 * 1000);
             await page.waitForFunction('google && google.maps && google.maps.Geocoder');
+            page.setRequestInterception(true);
             // Expected pattern
             // https://maps.googleapis.com/maps/api/js/GeocodeService.Search?5m2&1d38.714224&2d-73.961452&9sen-US&callback=_xdc_._loxntf&key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&token=117202
             // but instead just
@@ -29,8 +35,8 @@ const getGoogleApiUrls = async (parentState, input) => {
             // its better to control all calls to avoid detection
             // right now if reposnse is mocked and points to the same map web app do not make calls for rate limit tracking etc
             // it must be kept this way: from web app point of view its web visitor tried map UI once
-            await page.route('**/*', async (route) => {
-                const url = route.request().url();
+            page.on('request', (request) => {
+                const url = request.url();
                 if (url.includes('GeocodeService.Search')) {
                     log.debug(url);
                     const params = url.split('&');
@@ -43,43 +49,26 @@ const getGoogleApiUrls = async (parentState, input) => {
                         // keep URL with callback and token
                         cityRef.geocodeUrl = url;
                     }
-                    route.fulfill({ body: mockGeocodeResponse });
+                    cnt++;
+                    if (cnt % 10 === 0 || cnt >= latlngCoords.length) {
+                        log.info(`Crafted ${cnt} URLs out of ${latlngCoords.length} in total`);
+                    }
+                    request.continue({ body: mockGeocodeResponse });
                 } else {
                     log.info(url);
-                    route.continue();
+                    request.continue();
                 }
             });
-            const gHandle = evaluateHandle ? await page.evaluateHandle(() => new google.maps.Geocoder()) : null;
-            let cnt = 0;
-            for (const coord of processCoords) {
-                // latlng parsed from web UI from textbox as floats, mimic it
-                const lat = parseFloat(coord.lat); // 38.714224
-                const lng = parseFloat(coord.lng); // -73.961452
-                const loc = { location: { lat, lng } };
-                try {
-                    // Performance AB test
-                    if (!evaluateHandle) {
-                        // eslint-disable-next-line no-loop-func
-                        await page.evaluate((data) => {
-                            const o = new google.maps.Geocoder();
-                            o.geocode(data);
-                        }, loc);
-                        // await pageHandle.dispose();
-                    } else {
-                        // expected internal callback _.he error since geocode called outside of wrapper
-                        await page.evaluateHandle(([o, arg]) => o.geocode(arg), [gHandle, loc]);
-                    }
-                } catch (err) {
-                    if (!err.message?.includes('_.he')) {
-                        log.error(err.nessage, err);
+            await page.evaluate(async (data) => {
+                const o = new google.maps.Geocoder();
+                for (const item of data) {
+                    try {
+                        await o.geocode(item);
+                    } catch (err) {
+                        // just skip it
                     }
                 }
-                await sleep(apiDelaySecs * 1000); // delay needed to not lost requests by route
-                cnt++;
-                if (cnt % 10 === 0) {
-                    log.info(`Crafted ${cnt} URLs out of ${processCoords.length} in total`);
-                }
-            }
+            }, latlngCoords);
         },
     });
 

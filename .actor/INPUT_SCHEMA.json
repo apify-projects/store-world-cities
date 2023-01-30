@@ -511,16 +511,6 @@
             "default": false,
             "editor": "checkbox"
         },      
-        "apiDelaySecs": {
-            "title": "Delay for geocoding (seconds)",
-            "type": "integer",
-            "description": "Playwright delay, at least 5 seconds to be able intercept route",
-            "editor": "number",
-            "unit": "per URL",
-            "minimum": 5,
-            "default": 5,
-            "prefill": 5
-        },
         "proxy": {
             "title": "Proxy configuration",
             "type": "object",
@@ -536,6 +526,14 @@
             "editor": "proxy",
             "sectionCaption": "Configuration",
             "sectionDescription": "RESIDENTIAL proxy is required to run this actor!"
+        },
+        "maxRequestRetries": {
+            "title": "Geocoding max request retries",
+            "type": "integer",
+            "description": "Max request retries for crawling Google API",
+            "editor": "number",
+            "default": 5,
+            "prefill": 5
         },
         "kvStoreName": {
             "title": "KeyValue Store Name",
