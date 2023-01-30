@@ -85,7 +85,7 @@ const getGoogleApiUrls = async (parentState, input) => {
                         const limitErrorLabel = 'OVER_QUERY_LIMIT';
                         // its js-calculated limit, not actual calls made, so resolve it by pause
                         retries--;
-                        if (err.message.includes(limitErrorLabel) && retires) {
+                        if (err.message.includes(limitErrorLabel) && retries) {
                             log.debug(`${limitErrorLabel}:${retries}`, coord);
                             await sleep(2000);
                         } else {
