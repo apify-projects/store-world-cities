@@ -8,13 +8,14 @@ const getGoogleApiUrls = async (parentState, input) => {
     const { coords = [] } = parentState;
     const { proxy, maxRequestRetries = 5, tokenRetries = 3, tokenDelaySecs = 2 } = input;
 
+    const retriesAmount = parseInt(maxRequestRetries + (coords.length / 100), 10);
     const proxyConfiguration = await Actor.createProxyConfiguration(proxy);
     const crawler = new PuppeteerCrawler({
         useSessionPool: false,
         persistCookiesPerSession: false,
         proxyConfiguration,
-        requestHandlerTimeoutSecs: (coords.length + 1) * 60,
-        maxRequestRetries: parseInt(maxRequestRetries + (coords.length / 100), 10),
+        requestHandlerTimeoutSecs: retriesAmount * 10 * 60, // 10 min per 100 cities
+        maxRequestRetries: retriesAmount,
         async requestHandler(context) {
             const { page } = context;
 
